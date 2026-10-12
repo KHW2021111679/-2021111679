@@ -35,11 +35,25 @@ void loop() {
   }
 
   Serial.print("입력: ");
-  Serial.println(value);
+  Serial.print(value);
+  Serial.print(" / 색: ");
+
+  switch (color) { //색 출력
+    case 0:
+      Serial.println("빨강");
+      break;
+    case 1:
+      Serial.println("초록");
+      break;
+    case 2:
+      Serial.println("파랑");
+      break;
+}
+  
 
   time = millis();
 
-  if (digitalRead(BUTTON) == LOW && time - preTime >= 3000) { //버튼 && 3초 지나서 
+  if (digitalRead(BUTTON) == 0 && time - preTime >= 3000) { //버튼 && 3초 지나서 
     preTime = time;
 
     Serial.print("색상: ");
@@ -57,9 +71,9 @@ void loop() {
     }
 
       for (int i = 0; i < 5; i++) {
-        digitalWrite(led, HIGH);
+        digitalWrite(led, 1);
         delay(50);
-        digitalWrite(led, LOW);
+        digitalWrite(led, 0);
         delay(50);
      }
     delay(1000); //버튼 누를때 (if) 딜레이
