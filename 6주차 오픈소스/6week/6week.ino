@@ -1,83 +1,72 @@
 #define POT A1 //가변저항
 #define BUTTON 2
-#define RED 11
-#define GREEN 5
-#define BLUE 3
 
-unsigned long preTime = 0;
+int led[] = {11, 5, 3}; //RGB
+String name[] = {"빨강", "초록", "파랑"};
+String eng[] = {"RED", "GREEN", "BLUE"};
 unsigned long time = 0;
-
-int led = RED;
+unsigned long preTime = 0;
 
 void setup() {
   pinMode(POT, INPUT);
   pinMode(BUTTON, INPUT);
-  pinMode(RED, OUTPUT);
-  pinMode(GREEN, OUTPUT);
-  pinMode(BLUE, OUTPUT);
+
+  for (int i = 0; i < 3; i++) { //배열 
+    pinMode(led[i], OUTPUT);
+  }
+
   Serial.begin(9600);
 }
 
-void loop() {
-  int value = analogRead(POT); //가변저항값
-  int color = value / 342; // 1024나누기3=341.
 
-  switch (color) { //LED색 선택
-    case 0:
-      led = RED;
-      break;
-    case 1:
-      led = GREEN;
-      break;
-    case 2:
-      led = BLUE;
-      break;
+
+void loop() {
+  int value = analogRead(POT);
+  int color = value / 342; //색구간
+
+  show(value, color);
+
+  if (check(500)) {
+    blink(color);
+    delay(1000);
   }
 
+  delay(100);
+}
+
+void show(int value, int color) { //시리얼 출력
   Serial.print("입력: ");
   Serial.print(value);
   Serial.print(" / 색: ");
-
-  switch (color) { //색 출력
-    case 0:
-      Serial.println("빨강");
-      break;
-    case 1:
-      Serial.println("초록");
-      break;
-    case 2:
-      Serial.println("파랑");
-      break;
-}
+  Serial.println(name[color]);
   
+}
 
+int check(int a) { //실행 판단
   time = millis();
 
-  if (digitalRead(BUTTON) == 0 && time - preTime >= 3000) { //버튼 && 3초 지나서 
+  
+
+  if (digitalRead(BUTTON) == 0 && time - preTime >= a) {
     preTime = time;
-
-    Serial.print("색상: ");
-
-    switch (color) {
-      case 0:
-        Serial.println("RED");
-        break;
-      case 1:
-        Serial.println("GREEN");
-        break;
-      case 2:
-        Serial.println("BLUE");
-        break;
-    }
-
-      for (int i = 0; i < 5; i++) {
-        digitalWrite(led, 1);
-        delay(50);
-        digitalWrite(led, 0);
-        delay(50);
-     }
-    delay(1000); //버튼 누를때 (if) 딜레이
+    return 1;
   }
+  return 0;
+}
 
-  delay(100); //갱신 딜레이
+void blink(int color) { //점멸
+  Serial.print("색상: ");
+  Serial.println(eng[color]);
+  
+  Serial.print("time:");
+  Serial.print(time);
+  Serial.print(" / preTime: ");
+  Serial.println(preTime);
+
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(led[color], 1);
+    delay(50);
+    digitalWrite(led[color], 0);
+    delay(50);
+  }
 }
