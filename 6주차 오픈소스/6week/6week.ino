@@ -2,6 +2,7 @@
 #define BUTTON 2
 
 int led[] = {11, 5, 3}; //RGB
+int led2[] = {8, 7, 6}; //일반 LED
 String name[] = {"빨강", "초록", "파랑"};
 String eng[] = {"RED", "GREEN", "BLUE"};
 
@@ -12,8 +13,9 @@ void setup() {
   pinMode(POT, INPUT);
   pinMode(BUTTON, INPUT);
 
-  for (int i = 0; i < 3; i++) { //배열 
+  for (int i = 0; i < 3; i++) { //배열
     pinMode(led[i], OUTPUT);
+    pinMode(led2[i], OUTPUT);
   }
 
   Serial.begin(9600);
@@ -30,13 +32,14 @@ void loop() {
   delay(100);
 }
 
-int getColor(int value) { //색
-  if (value < 342) {
-    return 0;
-  } else if (value < 684) {
-    return 1;
-  } else {
-    return 2;
+int getColor(int value) { 
+  switch (value / 342) {
+    case 0:
+      return 0;
+    case 1:
+      return 1;
+    default:
+      return 2;
   }
 }
 
@@ -71,8 +74,11 @@ void check(int color) { //버튼 처리
 void blink(int color, int num) { //점멸
   for (int i = 0; i < num; i++) {
     digitalWrite(led[color], 1);
+    digitalWrite(led2[color], 1);
     delay(50);
+
     digitalWrite(led[color], 0);
+    digitalWrite(led2[color], 0);
     delay(50);
   }
 }
