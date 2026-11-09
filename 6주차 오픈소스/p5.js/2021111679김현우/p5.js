@@ -1,4 +1,4 @@
-/*! p5.js v2.3.1 July 21, 2026 */
+/*! p5.js v2.3.4 September 25, 2026 */
 var p5 = (function () {
   'use strict';
 
@@ -15,7 +15,7 @@ var p5 = (function () {
    * @property {String} VERSION
    * @final
    */
-  const VERSION = '2.3.1';
+  const VERSION = '2.3.4';
 
   // GRAPHICS RENDERER
   /**
@@ -23829,9 +23829,7 @@ var p5 = (function () {
 
   class Vertex {
     constructor(properties) {
-      for (const [key, value] of Object.entries(properties)) {
-        this[key] = value;
-      }
+      Object.assign(this, properties);
     }
     /*
     get array() {
@@ -23855,7 +23853,7 @@ var p5 = (function () {
     isClosing = false;
 
     constructor(...vertices) {
-      if (this.constructor === ShapePrimitive) {
+      if (new.target === ShapePrimitive) {
         throw new Error('ShapePrimitive is an abstract class: it cannot be instantiated.');
       }
       if (vertices.length > 0) {
@@ -23981,10 +23979,8 @@ var p5 = (function () {
   // ---- PATH PRIMITIVES ----
 
   class Anchor extends ShapePrimitive {
-    #vertexCapacity = 1;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 1;
     }
 
     accept(visitor) {
@@ -24000,7 +23996,7 @@ var p5 = (function () {
   class Segment extends ShapePrimitive {
     constructor(...vertices) {
       super(...vertices);
-      if (this.constructor === Segment) {
+      if (new.target === Segment) {
         throw new Error('Segment is an abstract class: it cannot be instantiated.');
       }
     }
@@ -24018,15 +24014,18 @@ var p5 = (function () {
     }
 
     getEndVertex() {
-      return this.vertices.at(-1);
+      return this.vertices[this.vertices.length - 1];
     }
   }
 
   class LineSegment extends Segment {
-    #vertexCapacity = 1;
-
+    // Consecutive line vertices on a path batch into a single LineSegment
+    // (see Shape.vertex()), so vertexCount may exceed this capacity. The
+    // capacity only governs addToShape() merging, which batching bypasses;
+    // it stays at 1 so the generic path never merges into a LineSegment
+    // (a closing vertex must remain its own segment).
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 1;
     }
 
     accept(visitor) {
@@ -24224,10 +24223,8 @@ var p5 = (function () {
   // ---- ISOLATED PRIMITIVES ----
 
   class Point extends ShapePrimitive {
-    #vertexCapacity = 1;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 1;
     }
 
     accept(visitor) {
@@ -24236,10 +24233,8 @@ var p5 = (function () {
   }
 
   class Line extends ShapePrimitive {
-    #vertexCapacity = 2;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 2;
     }
 
     accept(visitor) {
@@ -24248,10 +24243,8 @@ var p5 = (function () {
   }
 
   class Triangle extends ShapePrimitive {
-    #vertexCapacity = 3;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 3;
     }
 
     accept(visitor) {
@@ -24260,10 +24253,8 @@ var p5 = (function () {
   }
 
   class Quad extends ShapePrimitive {
-    #vertexCapacity = 4;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return 4;
     }
 
     accept(visitor) {
@@ -24394,10 +24385,8 @@ var p5 = (function () {
   // ---- TESSELLATION PRIMITIVES ----
 
   class TriangleFan extends ShapePrimitive {
-    #vertexCapacity = Infinity;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return Infinity;
     }
 
     accept(visitor) {
@@ -24406,10 +24395,8 @@ var p5 = (function () {
   }
 
   class TriangleStrip extends ShapePrimitive {
-    #vertexCapacity = Infinity;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return Infinity;
     }
 
     accept(visitor) {
@@ -24418,10 +24405,8 @@ var p5 = (function () {
   }
 
   class QuadStrip extends ShapePrimitive {
-    #vertexCapacity = Infinity;
-
     get vertexCapacity() {
-      return this.#vertexCapacity;
+      return Infinity;
     }
 
     accept(visitor) {
@@ -24431,70 +24416,35 @@ var p5 = (function () {
 
   // ---- PRIMITIVE SHAPE CREATORS ----
 
-  class PrimitiveShapeCreators {
-    // TODO: make creators private?
-    // That'd probably be better, but for now, it may be convenient to use
-    // native Map properties like size, e.g. for testing, and it's simpler to
-    // not have to wrap all the properties that might be useful
-    creators;
-
-    constructor() {
-      let creators = new Map();
-
-      /* TODO: REFACTOR BASED ON THE CODE BELOW,
-         ONCE CONSTANTS ARE IMPLEMENTED AS SYMBOLS
-
-      // Store Symbols as strings for use in Map keys
-      const EMPTY_PATH = constants.EMPTY_PATH.description;
-      const PATH = constants.PATH.description;
-      //etc.
-
-      creators.set(`vertex-${EMPTY_PATH}`, (...vertices) => new Anchor(...vertices));
-      // etc.
-
-      get(vertexKind, shapeKind) {
-        const key = `${vertexKind}-${shapeKind.description}`;
-        return this.creators.get(key);
-      }
-      // etc.
-      */
-
-      // vertex
-      creators.set(`vertex-${EMPTY_PATH}`, (...vertices) => new Anchor(...vertices));
-      creators.set(`vertex-${PATH}`, (...vertices) => new LineSegment(...vertices));
-      creators.set(`vertex-${POINTS}`, (...vertices) => new Point(...vertices));
-      creators.set(`vertex-${LINES}`, (...vertices) => new Line(...vertices));
-      creators.set(`vertex-${TRIANGLES}`, (...vertices) => new Triangle(...vertices));
-      creators.set(`vertex-${QUADS}`, (...vertices) => new Quad(...vertices));
-      creators.set(`vertex-${TRIANGLE_FAN}`, (...vertices) => new TriangleFan(...vertices));
-      creators.set(`vertex-${TRIANGLE_STRIP}`, (...vertices) => new TriangleStrip(...vertices));
-      creators.set(`vertex-${QUAD_STRIP}`, (...vertices) => new QuadStrip(...vertices));
-
-      // bezierVertex (constructors all take order and vertices so they can be called in a uniform way)
-      creators.set(`bezierVertex-${EMPTY_PATH}`, (order, ...vertices) => new Anchor(...vertices));
-      creators.set(`bezierVertex-${PATH}`, (order, ...vertices) => new BezierSegment$1(order, ...vertices));
-
-      // splineVertex
-      creators.set(`splineVertex-${EMPTY_PATH}`, (...vertices) => new Anchor(...vertices));
-      creators.set(`splineVertex-${PATH}`, (...vertices) => new SplineSegment(...vertices));
-
-      this.creators = creators;
+  // Creators are stored in a static nested object keyed by vertex kind and
+  // then by shape kind, so a lookup is two property accesses with no key
+  // string to build, and nothing is constructed per Shape. Shape kinds are
+  // primitive constants (numbers/strings), which work as computed keys;
+  // Symbols would too, if constants become Symbols later.
+  const defaultPrimitiveShapeCreators = {
+    vertex: {
+      [EMPTY_PATH]: (...vertices) => new Anchor(...vertices),
+      [PATH]: (...vertices) => new LineSegment(...vertices),
+      [POINTS]: (...vertices) => new Point(...vertices),
+      [LINES]: (...vertices) => new Line(...vertices),
+      [TRIANGLES]: (...vertices) => new Triangle(...vertices),
+      [QUADS]: (...vertices) => new Quad(...vertices),
+      [TRIANGLE_FAN]: (...vertices) => new TriangleFan(...vertices),
+      [TRIANGLE_STRIP]: (...vertices) => new TriangleStrip(...vertices),
+      [QUAD_STRIP]: (...vertices) => new QuadStrip(...vertices)
+    },
+    // bezierVertex creators all take order and vertices so they can be
+    // called in a uniform way
+    bezierVertex: {
+      [EMPTY_PATH]: (order, ...vertices) => new Anchor(...vertices),
+      [PATH]: (order, ...vertices) =>
+        new BezierSegment$1(order, ...vertices)
+    },
+    splineVertex: {
+      [EMPTY_PATH]: (...vertices) => new Anchor(...vertices),
+      [PATH]: (...vertices) => new SplineSegment(...vertices)
     }
-
-    get(vertexKind, shapeKind) {
-      const key = `${vertexKind}-${shapeKind}`;
-      return this.creators.get(key);
-    }
-
-    set(vertexKind, shapeKind, creator) {
-      const key = `${vertexKind}-${shapeKind}`;
-      this.creators.set(key, creator);
-    }
-
-    clear() {
-      this.creators.clear();
-    }
-  }
+  };
 
   // ---- SHAPE ----
 
@@ -24518,7 +24468,7 @@ var p5 = (function () {
 
     constructor(
       vertexProperties,
-      primitiveShapeCreators = new PrimitiveShapeCreators()
+      primitiveShapeCreators = defaultPrimitiveShapeCreators
     ) {
       this.#initialVertexProperties = vertexProperties;
       this.#vertexProperties = vertexProperties;
@@ -24720,7 +24670,6 @@ var p5 = (function () {
       }
     }
 
-    // maybe call this clear() for consistency with PrimitiveShapeCreators.clear()?
     // note: p5.Geometry has a reset() method, but also clearColors()
     // looks like reset() isn't in the public reference, so maybe we can switch
     // everything to clear()? Not sure if reset/clear is used in other classes,
@@ -24783,9 +24732,8 @@ var p5 = (function () {
     }
 
     #createPrimitiveShape(vertexKind, shapeKind, ...vertices) {
-      let primitiveShapeCreator = this.#primitiveShapeCreators.get(
-        vertexKind, shapeKind
-      );
+      let primitiveShapeCreator =
+        this.#primitiveShapeCreators[vertexKind][shapeKind];
 
       return  vertexKind === 'bezierVertex' ?
         primitiveShapeCreator(this.#bezierOrder, ...vertices) :
@@ -24814,6 +24762,38 @@ var p5 = (function () {
     }
 
     vertex(position, textureCoordinates, { isClosing = false } = {}) {
+      // Fast path for the most common case: appending a line segment to a
+      // path that has already started. Equivalent to the general path below
+      // (a LineSegment's vertex capacity is 1, so addToShape() never merges
+      // it into the previous primitive), without the creator-map lookup and
+      // the generic merging logic.
+      const contours = this.contours;
+      const lastContour = contours[contours.length - 1];
+      if (
+        lastContour !== undefined &&
+        lastContour.primitives.length > 0 &&
+        lastContour.kind === PATH
+      ) {
+        const vertex = this.#createVertex(position, textureCoordinates);
+        const primitives = lastContour.primitives;
+        const lastPrimitive = primitives[primitives.length - 1];
+        if (
+          !isClosing &&
+          lastPrimitive instanceof LineSegment &&
+          !lastPrimitive.isClosing
+        ) {
+          // Consecutive line vertices accumulate into one polyline segment
+          lastPrimitive.vertices.push(vertex);
+          return;
+        }
+        const segment = new LineSegment(vertex);
+        segment.isClosing = isClosing;
+        segment._primitivesIndex = primitives.length;
+        segment._contoursIndex = contours.length - 1;
+        segment._shape = this;
+        primitives.push(segment);
+        return;
+      }
       const added = this.#generalVertex('vertex', position, textureCoordinates);
       added.isClosing = isClosing;
     }
@@ -24941,7 +24921,7 @@ var p5 = (function () {
             const prevVertexProperties = this.#vertexProperties;
             this.#vertexProperties = { ...prevVertexProperties };
             for (const key in anchorVertex) {
-              if (['position', 'textureCoordinates'].includes(key)) continue;
+              if (key === 'position' || key === 'textureCoordinates') continue;
               this.#vertexProperties[key] = anchorVertex[key];
             }
             this.vertex(
@@ -24987,7 +24967,7 @@ var p5 = (function () {
   // abstract class
   class PrimitiveVisitor {
     constructor() {
-      if (this.constructor === PrimitiveVisitor) {
+      if (new.target === PrimitiveVisitor) {
         throw new Error('PrimitiveVisitor is an abstract class: it cannot be instantiated.');
       }
     }
@@ -25049,10 +25029,14 @@ var p5 = (function () {
     strokePath = null;
     fillPath = null;
     strokeWeight;
+    hasFill;
+    hasStroke;
 
-    constructor({ strokeWeight }) {
+    constructor({ strokeWeight, hasFill = true, hasStroke = true }) {
       super();
       this.strokeWeight = strokeWeight;
+      this.hasFill = hasFill;
+      this.hasStroke = hasStroke;
     }
 
     // path primitives
@@ -25066,8 +25050,11 @@ var p5 = (function () {
         // and the starting vertex rather than having two caps
         this.path.closePath();
       } else {
-        let vertex = lineSegment.getEndVertex();
-        this.path.lineTo(vertex.position.x, vertex.position.y);
+        const vertices = lineSegment.vertices;
+        for (let i = 0; i < vertices.length; i++) {
+          const position = vertices[i].position;
+          this.path.lineTo(position.x, position.y);
+        }
       }
     }
     visitBezierSegment(bezierSegment) {
@@ -25184,28 +25171,33 @@ var p5 = (function () {
         isFullCircle
       );
 
-      if (!this.fillPath) this.fillPath = new Path2D(this.path);
-      if (!this.strokePath) this.strokePath = new Path2D(this.path);
+      if (this.hasFill) {
+        if (!this.fillPath) this.fillPath = new Path2D(this.path);
 
-      this.fillPath.moveTo(startX, startY);
-      this.fillPath.ellipse(centerX, centerY, radiusX, radiusY,
-        0, arc.start, arc.stop);
-      if (createPieSlice) {
-        this.fillPath.lineTo(centerX, centerY);
-      }
-      this.fillPath.closePath();
-
-      this.strokePath.moveTo(startX, startY);
-      this.strokePath.ellipse(centerX, centerY, radiusX, radiusY,
-        0, arc.start, arc.stop);
-      if (arc.mode === PIE && createPieSlice) {
-        this.strokePath.lineTo(centerX, centerY);
-      }
-      if (arc.mode === PIE || arc.mode === CHORD) {
-        this.strokePath.closePath();
+        this.fillPath.moveTo(startX, startY);
+        this.fillPath.ellipse(centerX, centerY, radiusX, radiusY,
+          0, arc.start, arc.stop);
+        if (createPieSlice) {
+          this.fillPath.lineTo(centerX, centerY);
+        }
+        this.fillPath.closePath();
       }
 
-      // Still maintain base path just in case
+      if (this.hasStroke) {
+        if (!this.strokePath) this.strokePath = new Path2D(this.path);
+
+        this.strokePath.moveTo(startX, startY);
+        this.strokePath.ellipse(centerX, centerY, radiusX, radiusY,
+          0, arc.start, arc.stop);
+        if (arc.mode === PIE && createPieSlice) {
+          this.strokePath.lineTo(centerX, centerY);
+        }
+        if (arc.mode === PIE || arc.mode === CHORD) {
+          this.strokePath.closePath();
+        }
+      }
+
+      // Clipping uses the base path rather than the specialized paint paths.
       this.path.moveTo(startX, startY);
       this.path.ellipse(centerX, centerY, radiusX, radiusY,
         0, arc.start, arc.stop);
@@ -25318,7 +25310,11 @@ var p5 = (function () {
       }
     }
     visitLineSegment(lineSegment) {
-      this.lastContour().push(lineSegment.getEndVertex());
+      const contour = this.lastContour();
+      const vertices = lineSegment.vertices;
+      for (let i = 0; i < vertices.length; i++) {
+        contour.push(vertices[i]);
+      }
     }
     visitBezierSegment(bezierSegment) {
       const contour = this.lastContour();
@@ -27169,6 +27165,12 @@ var p5 = (function () {
       this._clipInvert = false;
 
       this._currentShape = undefined; // Lazily generate current shape
+
+      // Lazily cached by _individualTextureCoordinates(); initialized here
+      // (rather than computed) so subclasses can rely on their own
+      // constructor state when getSupportedIndividualVertexProperties()
+      // is first consulted.
+      this._supportsIndividualTextureCoordinates = undefined;
     }
 
     get currentShape() {
@@ -27223,12 +27225,22 @@ var p5 = (function () {
       }
     }
 
-    bezierVertex(x, y, z = 0, u = 0, v = 0) {
-      const position = new Vector(x, y, z);
-      const textureCoordinates = this.getSupportedIndividualVertexProperties()
-        .textureCoordinates
+    // Builds the per-vertex texture-coordinates argument, caching whether
+    // the renderer supports them so the descriptor object isn't rebuilt on
+    // every vertex call.
+    _individualTextureCoordinates(u, v) {
+      if (this._supportsIndividualTextureCoordinates === undefined) {
+        this._supportsIndividualTextureCoordinates =
+          this.getSupportedIndividualVertexProperties().textureCoordinates;
+      }
+      return this._supportsIndividualTextureCoordinates
         ? new Vector(u, v)
         : undefined;
+    }
+
+    bezierVertex(x, y, z = 0, u = 0, v = 0) {
+      const position = new Vector(x, y, z);
+      const textureCoordinates = this._individualTextureCoordinates(u, v);
       this.currentShape.bezierVertex(position, textureCoordinates);
     }
 
@@ -27254,10 +27266,7 @@ var p5 = (function () {
 
     splineVertex(x, y, z = 0, u = 0, v = 0) {
       const position = new Vector(x, y, z);
-      const textureCoordinates = this.getSupportedIndividualVertexProperties()
-        .textureCoordinates
-        ? new Vector(u, v)
-        : undefined;
+      const textureCoordinates = this._individualTextureCoordinates(u, v);
       this.currentShape.splineVertex(position, textureCoordinates);
     }
 
@@ -27294,10 +27303,7 @@ var p5 = (function () {
 
     vertex(x, y, z = 0, u = 0, v = 0) {
       const position = new Vector(x, y, z);
-      const textureCoordinates = this.getSupportedIndividualVertexProperties()
-        .textureCoordinates
-        ? new Vector(u, v)
-        : undefined;
+      const textureCoordinates = this._individualTextureCoordinates(u, v);
       this.currentShape.vertex(position, textureCoordinates);
     }
 
@@ -38943,13 +38949,13 @@ var p5 = (function () {
             fn.saveJSON(args[0], args[1], args[2]);
             return;
           case 'txt':
-            fn.saveStrings(args[0], args[1], args[2]);
+            fn.saveStrings(args[0], args[1], 'txt', args[2]);
             return;
           // =================================================
           // OPTION 3: decide based on object...
           default:
             if (args[0] instanceof Array) {
-              fn.saveStrings(args[0], args[1], args[2]);
+              fn.saveStrings(args[0], args[1], undefined, args[2]);
             } else if (args[0] instanceof p5.Table) {
               fn.saveTable(args[0], args[1], args[2]);
             } else if (args[0] instanceof p5.Image) {
@@ -39410,6 +39416,40 @@ var p5 = (function () {
 
 
   function loadingDisplaying(p5, fn){
+    /**
+     * The largest possible number of pixels a gif frame can contain.
+     *
+     * This static property defines how large, in terms of dimension, a gif image
+     * is allowed to be loaded into a p5 sketch. The default value is
+     * 16,000,000. This means an image's width multiplied by its height must not
+     * exceed 100,000,000. For example, an image with width 10,000 and height
+     * 10,000 is just enough, as well as an image with width 5000 and height
+     * 20,000. An image with width 20,000 and height 20,000 is not allowed and
+     * will cause an error when it is loaded.
+     *
+     * To avoid this error, you should try to reduce the image dimension of the
+     * gif. If that is not possible or not desirable, you can set
+     * `MAX_GIF_PIXELS` to a higher value instead.
+     *
+     * @static
+     * @property {Boolean} MAX_GIF_PIXELS
+     *
+     * @example
+     * // META: norender
+     * // Increase the maximum pixel counts to 200,000,000
+     * p5.MAX_GIF_PIXELS = 200_000_000;
+     *
+     * let img;
+     * async function setup() {
+     *   createCanvas(100, 100);
+     *
+     *   background(200);
+     *
+     *   img = await loadImage('./a-large-animated.gif');
+     * }
+     */
+    p5.MAX_GIF_PIXELS = 4000 * 4000; // 4 Channel per pixels for total of 64MB
+
     /**
      * Loads an image to create a <a href="#/p5.Image">p5.Image</a> object.
      *
@@ -40022,6 +40062,13 @@ var p5 = (function () {
       pImg.height = pImg.canvas.height = gifReader.height;
       const frames = [];
       const numFrames = gifReader.numFrames();
+
+      if (pImg.width * pImg.height > p5.MAX_GIF_PIXELS) {
+        // GIF is too big, refuse to proceed
+        p5.FES.log`The GIF is over the maximum allowed dimension. Try to shrink the image or set p5.MAX_GIF_PIXELS to a higher value.`();
+        throw new Error("The GIF is over the maximum allowed dimension.");
+      }
+
       let framePixels = new Uint8ClampedArray(pImg.width * pImg.height * 4);
 
       const loadGIFFrameIntoImage = (frameNum, gifReader) => {
@@ -46903,14 +46950,14 @@ var p5 = (function () {
 
     /**
      * Multiplies a quaternion with other quaternion.
-     * @method mult
+     * @method multiply
      * @param  {p5.Quat} [quat] quaternion to multiply with the quaternion calling the method.
      * @chainable
      */
     multiply(quat) {
 
       return new Quat(
-        this.w * quat.w - this.vec.x * quat.vec.x - this.vec.y * quat.vec.y - this.vec.z - quat.vec.z,
+        this.w * quat.w - this.vec.x * quat.vec.x - this.vec.y * quat.vec.y - this.vec.z * quat.vec.z,
         this.w * quat.vec.x + this.vec.x * quat.w + this.vec.y * quat.vec.z - this.vec.z * quat.vec.y,
         this.w * quat.vec.y - this.vec.x * quat.vec.z + this.vec.y * quat.w + this.vec.z * quat.vec.x,
         this.w * quat.vec.z + this.vec.x * quat.vec.y - this.vec.y * quat.vec.x + this.vec.z * quat.w
@@ -73719,7 +73766,9 @@ var p5 = (function () {
 
     drawShape(shape) {
       const visitor = new PrimitiveToPath2DConverter({
-        strokeWeight: this.states.strokeWeight
+        strokeWeight: this.states.strokeWeight,
+        hasFill: !this._clipping && !!this.states.fillColor,
+        hasStroke: !this._clipping && !!this.states.strokeColor
       });
       shape.accept(visitor);
       if (this._clipping) {
@@ -74489,6 +74538,83 @@ var p5 = (function () {
   }
 
   /**
+   * @module Loading
+   * @for p5
+   * @private
+   *
+   * Handles the logic for creating a loading indicator.
+   * Currently, the loading indicator is basic and can be extended in the future.
+   */
+
+  /**
+   * Creates a loading indicator when the sketch's setup() function is running.
+   * It is called and removed automatically using the presetup and postsetup lifecycles hooks.
+   *
+   * @param {*} p5 The p5 constructor
+   * @param {*} fn The p5 prototype object
+   * @param {*} lifecycles Lifecycle hooks for the sketch
+   */
+  function loading$2(p5, fn, lifecycles) {
+    lifecycles.presetup = function() {
+      if (typeof window === 'undefined' || this._loadingIndicator) {
+        return;
+      }
+
+      const canvasParent = this.canvas?.parentElement;
+      let container = this._userNode || canvasParent || document.body;
+
+      if (typeof container === 'string') {
+        container = document.getElementById(container) || document.body;
+      }
+
+      this._loadingIndicator = createLoadingIndicator(container);
+    };
+
+    lifecycles.postsetup = function() {
+      if (this._loadingIndicator) {
+        this._loadingIndicator.remove();
+        this._loadingIndicator = null;
+      }
+    };
+  }
+
+  /**
+   * Creates and stylizes the loading indicator.
+   * As a helper function, it can be extensible and modified in future versions.
+   *
+   * @private
+   * @param {HTMLElement} container The HTML element to append the indicator to
+   * @returns {HTMLElement} The loading indicator div element
+   */
+  function createLoadingIndicator(container) {
+    if (!document.getElementById('p5-loading-style')) {
+      const loadingStyle = document.createElement('style');
+      loadingStyle.id = 'p5-loading-style';
+      loadingStyle.textContent = '@keyframes p5-loading-spin { to { transform: rotate(360deg); } }';
+      document.head.appendChild(loadingStyle);
+    }
+
+    const indicator = document.createElement('div');
+    indicator.className = 'loading-indicator';
+    indicator.style.cssText = `
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: rgba(0, 0, 0, 0.8);
+    animation: p5-loading-spin 1s linear infinite;
+    z-index: 9999;
+  `;
+
+    container.appendChild(indicator);
+    return indicator;
+  }
+
+  /**
    * @module Structure
    * @submodule Structure
    * @for p5
@@ -75127,6 +75253,7 @@ var p5 = (function () {
   p5$2.registerAddon(renderer);
   p5$2.registerAddon(renderer2D);
   p5$2.registerAddon(graphics);
+  p5$2.registerAddon(loading$2);
 
   //////////////////////////////////////////////
   // PUBLIC p5 PROPERTIES AND METHODS
@@ -81309,7 +81436,7 @@ var p5 = (function () {
         const fnNames = entryPoints;
 
         if (context.preload && !p5.isPreloadSupported()) {
-          p5._error(context, translator('fes.preloadDisabled'));
+          p5._error(p5.instance, translator('fes.preloadDisabled'));
         }
 
         const fxns = {};
@@ -81949,7 +82076,7 @@ var p5 = (function () {
       p5._fesLogCache = {};
 
       lifecycles.presetup = function () {
-        window.addEventListener('load', checkForUserDefinedFunctions, false);
+        checkForUserDefinedFunctions(window);
         window.addEventListener('error', p5._fesErrorMonitor, false);
         window.addEventListener('unhandledrejection', p5._fesErrorMonitor, false);
       };
@@ -88924,7 +89051,8 @@ var p5 = (function () {
   		overloads: [
   			[
   				"Number",
-  				"Number"
+  				"Number",
+  				"...Number[]"
   			],
   			[
   				"Number[]"
@@ -89107,7 +89235,8 @@ var p5 = (function () {
   		overloads: [
   			[
   				"Number",
-  				"Number"
+  				"Number",
+  				"...Number[]"
   			],
   			[
   				"Number[]"
@@ -108156,6 +108285,7 @@ var p5 = (function () {
      * @method max
      * @param  {Number} n0 first number to compare.
      * @param  {Number} n1 second number to compare.
+     * @param  {...Number} rest additional numbers to compare.
      * @return {Number}             maximum number.
      */
     /**
@@ -108275,6 +108405,7 @@ var p5 = (function () {
      * @method min
      * @param  {Number} n0 first number to compare.
      * @param  {Number} n1 second number to compare.
+     * @param  {...Number} rest additional numbers to compare.
      * @return {Number}             minimum number.
      */
     /**

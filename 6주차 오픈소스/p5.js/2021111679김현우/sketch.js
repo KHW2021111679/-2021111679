@@ -1,3 +1,6 @@
+let port;
+let sendTime = 0;
+
 let playerX = 350; //플레이어 X
 let playerY = 885; //플레이어 Y
 let playerSize = 30; //플레이어 크기
@@ -18,9 +21,19 @@ let gameState = 0; //게임 상태(0,1,2로 상태 조절)
 let startTime = 0; //시작 시간
 let score = 0; //점수
 
+let charge = 0;
+let lastStep = 0;
+
 function setup() {
   createCanvas(700, 1000); //화면 크기
   textAlign(CENTER, CENTER); //중앙 정렬
+
+port = new p5.WebSerial();
+port.on("portavailable", openPort);
+
+let button = createButton("아두이노 포트 연결");
+button.position(20, 15);
+button.mousePressed(choosePort);
 }
 
 function draw() {
@@ -36,9 +49,7 @@ function draw() {
   stroke(0); //검정 테두리
   strokeWeight(1); //테두리 두께
 
-  switch (
-    colorNum //플레이어 색 선택
-  ) {
+  switch (colorNum) { //플레이어 색 선택
     case 1:
       playerColor = color(255, 0, 0); //빨강
       break;
@@ -55,17 +66,23 @@ function draw() {
 
     fill(0); //글자 색
     textSize(30); //글자 크기
-    text("똥 피하기\n\n1: 빨강  2: 초록  3: 파랑\nENTER를 눌러 시작", 350, 420);
+    text(
+      "똥 피하기\n\n1: 빨강  2: 초록  3: 파랑\nENTER를 눌러 시작",
+      350,
+      420
+    );
 
     textSize(20);
     text("좌우 방향키: 이동 / 마우스 누르기: 느리게", 350, 570); //조작 안내
   } else if (gameState == 1) {
     //게임 진행
     score = int((millis() - startTime) / 1000); //생존 시간
+    updateCharge();
 
     fill(0); //점수 색
     textSize(25); //점수 크기
     text("Score: " + score, 350, 40); //점수 표시
+    text("충전: " + charge + " / 4", 350, 70);
 
     if (mouseIsPressed) {
       //마우스 누르는 동안
@@ -143,6 +160,15 @@ function draw() {
   ellipse(mouseX, mouseY, 12, 12); //마우스 따라가는 원
 }
 
+function updateCharge() {
+  let chargeStep = int(score / 10);
+
+  if (chargeStep > lastStep) {
+    charge = min(4, charge + chargeStep - lastStep);
+    lastStep = chargeStep;
+  }
+}
+
 function drawPlayer(x, y) {
   stroke(0); //몸통 테두리
   strokeWeight(1); //테두리 두께
@@ -169,6 +195,8 @@ function startGame() {
   rad = 0; //이동 각도
   ang = 0; //회전 각도
   score = 0; //점수
+  charge = 0;
+  lastStep = 0;
 
   for (let i = 0; i < 10; i++) {
     //투사체 10개 초기화
@@ -207,5 +235,22 @@ function mousePressed() {
   if (gameState == 2) {
     //종료 상태
     startGame(); //재시작
+  }
+}
+
+function choosePort() {
+  if (!port.portOpen) {
+    port.requestPort();
+  }
+}
+
+function openPort() {
+  port.open({ baudRate: 9600 });
+}
+
+function sendGame() {
+  if (port.portOpen && millis() - sendTime >= 200) {
+    port.write(gameState + " " + charge + "\n");
+    sendTime = millis();
   }
 }
