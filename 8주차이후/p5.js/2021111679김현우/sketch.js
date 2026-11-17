@@ -1,5 +1,6 @@
 let port;
 let value = 512;
+let value2 = 0;
 
 let playerX = 350;
 let playerY = 885;
@@ -42,6 +43,9 @@ function draw() {
   stroke(0);
   strokeWeight(1);
 
+  playerX = map(value, 0, 1023, 50, 650 - playerSize);
+  playerX = constrain(playerX, 50, 650 - playerSize);
+
   if (gameState == 0) {
     fill(0);
     textSize(30);
@@ -49,7 +53,7 @@ function draw() {
 
     textSize(23);
     text(
-      "포트 연결 후 버튼을 눌러 시작\n가변저항: 좌우 이동",
+      "포트 연결 후 버튼을 눌러 시작\n가변저항 1: 좌우 이동\n가변저항 2: 색 변경",
       350,
       470
     );
@@ -61,11 +65,7 @@ function draw() {
     text("끝", 350, 350);
 
     textSize(25);
-    text(
-      "점수: " + score + "\n버튼을 눌러 다시 시작",
-      350,
-      500
-    );
+    text("점수: " + score + "\n버튼을 눌러 다시 시작", 350, 500);
   }
 
   drawPlayer(playerX, playerY);
@@ -77,9 +77,6 @@ function playGame() {
   fill(0);
   textSize(25);
   text("Score: " + score, 350, 40);
-
-  playerX = map(value, 0, 1023, 50, 650 - playerSize);
-  playerX = constrain(playerX, 50, 650 - playerSize);
 
   enemyX = 350 + sin(ang) * 270;
   ang += 0.05;
@@ -108,7 +105,20 @@ function playGame() {
 }
 
 function drawPlayer(x, y) {
-  fill(0, 150, 255);
+  let colorNum = int(value2 / 342);
+
+  switch (colorNum) {
+    case 0:
+      fill(255, 0, 0);
+      break;
+    case 1:
+      fill(0, 255, 0);
+      break;
+    case 2:
+      fill(0, 0, 255);
+      break;
+  }
+
   rect(x, y, playerSize, playerSize);
 
   fill(0);
@@ -125,12 +135,6 @@ function checkCollision(px, py, bx, by) {
 }
 
 function startGame() {
-  playerX = constrain(
-    map(value, 0, 1023, 50, 650 - playerSize),
-    50,
-    650 - playerSize
-  );
-
   enemyX = 350;
   ang = 0;
   score = 0;
@@ -149,14 +153,13 @@ function serialEvent() {
   let str = port.readLine();
 
   while (str != null) {
-    console.log(str);
-
     let data = str.trim().split(",");
 
-    if (data.length == 2) {
-      value = float(data[0]);
+    if (data.length == 3) {
+      value = int(data[0]);
+      value2 = int(data[1]);
 
-      if (data[1] == "YES" && gameState != 1) {
+      if (data[2] == "YES" && gameState != 1) {
         startGame();
       }
     }
@@ -170,9 +173,5 @@ function choosePort() {
 }
 
 function openPort() {
-  port.open().then(initiateSerial);
-}
-
-function initiateSerial() {
-  console.log("포트 오픈");
+  port.open({ baudRate: 9600 });
 }
