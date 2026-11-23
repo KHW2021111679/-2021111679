@@ -1,6 +1,9 @@
 let port;
 let value = 512;
 let value2 = 0;
+let button = 1;
+let pre = 1;
+let msg = "수신 대기";
 
 let playerX = 350;
 let playerY = 885;
@@ -26,8 +29,8 @@ function setup() {
   port.on("portavailable", openPort);
   port.on("data", serialEvent);
 
-  let button = createButton("포트 연결");
-  button.mousePressed(choosePort);
+  let btn = createButton("포트 연결");
+  btn.mousePressed(choosePort);
 }
 
 function draw() {
@@ -69,6 +72,12 @@ function draw() {
   }
 
   drawPlayer(playerX, playerY);
+
+  fill(0);
+  textSize(20);
+  text("수신: " + msg, 350, 160);
+  text("버튼: " + button, 350, 195);
+  text("게임 상태: " + gameState, 350, 230);
 }
 
 function playGame() {
@@ -152,20 +161,31 @@ function startGame() {
 function serialEvent() {
   let str = port.readLine();
 
-  while (str != null) {
-    let data = str.trim().split(",");
-
-    if (data.length == 3) {
-      value = int(data[0]);
-      value2 = int(data[1]);
-
-      if (data[2] == "YES" && gameState != 1) {
-        startGame();
-      }
-    }
-
-    str = port.readLine();
+  if (!str) {
+    return;
   }
+
+  msg = str.trim();
+
+  let data = msg.split(",");
+
+  port.write("B");
+
+  if (data.length != 3) {
+    return;
+  }
+
+  value = int(data[0]);
+  value2 = int(data[1]);
+  button = int(data[2]);
+
+  if (button == 0 && pre == 1) {
+    if (gameState != 1) {
+      startGame();
+    }
+  }
+
+  pre = button;
 }
 
 function choosePort() {
